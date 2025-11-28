@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # =============================
 model = load_model("model_bbca.keras")
 
-with open("scaler.pkl", "rb") as f:
+with open("scaler_bbca.pkl", "rb") as f:
     scaler = pickle.load(f)
 
 # =============================
