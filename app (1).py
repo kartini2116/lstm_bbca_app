@@ -8,11 +8,17 @@ import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
+from tensorflow.keras.losses import MeanSquaredError
 
 # ---------------------------
 # 1. Load Model & Scaler
 # ---------------------------
-model = load_model("model_bbca.h5")
+
+# LOAD MODEL .H5 TANPA ERROR
+model = load_model("model_bbca.h5", compile=False)
+model.compile(optimizer="adam", loss=MeanSquaredError())
+
+# load scaler
 scaler = joblib.load("scaler_bbca.pkl")
 
 # ---------------------------
