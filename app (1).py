@@ -88,4 +88,4 @@ ax.set_ylabel("Harga (IDR)")
 ax.legend()
 ax.grid(True)
 
-st.matplotlib(fig)
+st.pyplot(fig)
