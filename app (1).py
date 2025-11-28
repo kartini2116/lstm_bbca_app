@@ -13,12 +13,9 @@ from tensorflow.keras.losses import MeanSquaredError
 # ---------------------------
 # 1. Load Model & Scaler
 # ---------------------------
-
-# LOAD MODEL .H5 TANPA ERROR
 model = load_model("model_bbca.h5", compile=False)
 model.compile(optimizer="adam", loss=MeanSquaredError())
 
-# load scaler
 scaler = joblib.load("scaler_bbca.pkl")
 
 # ---------------------------
@@ -38,17 +35,19 @@ def predict_future(model, scaler, data, days=23, timestep=60):
     window = data[-timestep:].reshape(1, timestep, 1)
 
     for _ in range(days):
-        pred = model.predict(window, verbose=0)
-        results_scaled.append(pred[0][0])
+        pred = model.predict(window, verbose=0)  # hasil: (1,1)
+        
+        # pastikan shape menjadi (1,1,1)
+        pred_reshaped = pred.reshape(1, 1, 1)
 
-        # update window
-        window = np.append(window[:, 1:, :], [[pred]], axis=1)
+        # update window: geser & tambah prediksi baru
+        window = np.concatenate([window[:, 1:, :], pred_reshaped], axis=1)
+
+        results_scaled.append(pred[0][0])
 
     # balikkan skala
     results = scaler.inverse_transform(np.array(results_scaled).reshape(-1,1))
-
     return results
-
 
 # ---------------------------
 # 4. Prediksi 23 Hari ke Depan
@@ -59,7 +58,6 @@ future_pred = predict_future(model, scaler, scaled_close, days=future_days, time
 print("\n=== Prediksi 23 Hari Kedepan ===")
 for i, p in enumerate(future_pred, start=1):
     print(f"Hari ke-{i}: Rp {p[0]:,.2f}")
-
 
 # ---------------------------
 # 5. Plot Grafik Harga Aktual + Prediksi Future
