@@ -87,9 +87,9 @@ ax.set_ylabel("Harga (IDR)")
 ax.legend()
 ax.grid(True)
 
-st.pyplot(fig)
+st.pyplot(fig).models 
 
-.models import load_model
+import load_model
 import pickle
 import matplotlib.pyplot as plt
 
