@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # ---------------------------------------
 #  LOAD MODEL & SCALER
 # ---------------------------------------
-MODEL_PATH = "model_bbca.h5"
+MODEL_PATH = "model_bbca.keras"
 SCALER_PATH = "scaler_bbca.pkl"
 
 model = load_model(MODEL_PATH)
