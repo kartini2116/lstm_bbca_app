@@ -14,13 +14,52 @@ import ta
 import pickle
 from tensorflow.keras.models import load_model
 
+# =====================================================================
+# LOAD MODEL & SCALER UNTUK PREDIKSI BBCA
+# =====================================================================
+MODEL_PATH = "model_bbca.keras"
+SCALER_PATH = "scaler_bbca.pkl"
+DATA_PATH   = "bbca.csv"
+
+model = load_model(MODEL_PATH)
+with open(SCALER_PATH, "rb") as f:
+    scaler = pickle.load(f)
+
+TIMESTEP = 60   # harus sama seperti model training
+
+# =====================================================================
+# FUNCTION PREDIKSI LSTM BBCA
+# =====================================================================
+def predict_lstm(n_days):
+    df = pd.read_csv(DATA_PATH)
+    close_prices = df["Close"].astype(float).values.reshape(-1, 1)
+
+    scaled = scaler.transform(close_prices)
+
+    seq = scaled[-TIMESTEP:]
+    seq = seq.reshape(1, TIMESTEP, 1)
+
+    pred_scaled_list = []
+    pred_real_list = []
+
+    for _ in range(n_days):
+        next_scaled = model.predict(seq, verbose=0)[0][0]
+        pred_scaled_list.append(next_scaled)
+
+        next_real = scaler.inverse_transform([[next_scaled]])[0][0]
+        pred_real_list.append(next_real)
+
+        new_seq = np.append(seq.flatten()[1:], next_scaled)
+        seq = new_seq.reshape(1, TIMESTEP, 1)
+
+    return df, pred_real_list
 
 # =====================================================================
 # MENU 2: PREDIKSI BBCA DENGAN MODEL LSTM KAMU
 # =====================================================================
 if menu == "Prediksi Harga BBCA ":
 
-    st.header("Prediksi Harga Saham BBCA Menggunakan Model LSTM Anda")
+    st.header("Prediksi Harga Saham BBCA ")
 
     n_days = st.slider("Prediksi berapa hari ke depan?", 1, 30, 7)
 
