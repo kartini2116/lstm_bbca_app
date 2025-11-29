@@ -1,5 +1,5 @@
 # =====================================================================
-#   DASHBOARD + MODEL LSTM BBCA (KODE SUDAH DIMODIFIKASI UNTUK ANDA)
+#   STREAMLIT DASHBOARD + MODEL LSTM BBCA (FULL VERSION - FIXED)
 # =====================================================================
 
 import streamlit as st
@@ -10,12 +10,11 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
 import pytz
-import ta
 import pickle
 from tensorflow.keras.models import load_model
 
 # =====================================================================
-# LOAD MODEL & SCALER UNTUK PREDIKSI BBCA
+# LOAD MODEL & SCALER
 # =====================================================================
 MODEL_PATH = "model_bbca.keras"
 SCALER_PATH = "scaler_bbca.pkl"
@@ -25,38 +24,38 @@ model = load_model(MODEL_PATH)
 with open(SCALER_PATH, "rb") as f:
     scaler = pickle.load(f)
 
-TIMESTEP = 60   # harus sama seperti model training
+TIMESTEP = 60
+
 
 # =====================================================================
-# FUNCTION PREDIKSI LSTM BBCA
+# LSTM PREDICTION FUNCTION
 # =====================================================================
 def predict_lstm(n_days):
     df = pd.read_csv(DATA_PATH)
-    close_prices = df["Close"].astype(float).values.reshape(-1, 1)
+    df["Close"] = pd.to_numeric(df["Close"], errors='coerce')
+    df = df.dropna(subset=['Close'])
 
+    close_prices = df["Close"].values.reshape(-1, 1)
     scaled = scaler.transform(close_prices)
 
     seq = scaled[-TIMESTEP:]
     seq = seq.reshape(1, TIMESTEP, 1)
 
-    pred_scaled_list = []
-    pred_real_list = []
+    pred_list = []
 
     for _ in range(n_days):
         next_scaled = model.predict(seq, verbose=0)[0][0]
-        pred_scaled_list.append(next_scaled)
-
         next_real = scaler.inverse_transform([[next_scaled]])[0][0]
-        pred_real_list.append(next_real)
+        pred_list.append(next_real)
 
         new_seq = np.append(seq.flatten()[1:], next_scaled)
         seq = new_seq.reshape(1, TIMESTEP, 1)
 
-    return df, pred_real_list
+    return df, pred_list
 
 
 # =====================================================================
-#  FUNCTION REAL-TIME STOCK FROM YFINANCE
+# FETCH STOCK DATA
 # =====================================================================
 def fetch_stock_data(ticker, period, interval):
     end_date = datetime.now()
@@ -67,43 +66,70 @@ def fetch_stock_data(ticker, period, interval):
         data = yf.download(ticker, period=period, interval=interval)
     return data
 
+
+# =====================================================================
+# FIX TIMEZONE + FORMAT
+# =====================================================================
 def process_data(data):
     if data.index.tzinfo is None:
         data.index = data.index.tz_localize('UTC')
+
     data.index = data.index.tz_convert('US/Eastern')
+    data = data.dropna()
     data.reset_index(inplace=True)
     data.rename(columns={'Date': 'Datetime'}, inplace=True)
     return data
 
-def calculate_metrics(data):
-    last_close = data['Close'].iloc[-1]
-    prev_close = data['Close'].iloc[0]
-    change = last_close - prev_close
-    pct_change = (change / prev_close) * 100
-    high = data['High'].max()
-    low = data['Low'].min()
-    volume = data['Volume'].sum()
-    return last_close, change, pct_change, high, low, volume
 
+# =====================================================================
+# TECHNICAL INDICATORS
+# =====================================================================
 def add_technical_indicators(data):
-    data['SMA_20'] = data['Close'].rolling(window=20).mean()
+    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
+    data['SMA_20'] = data['Close'].rolling(window=20, min_periods=1).mean()
     data['EMA_20'] = data['Close'].ewm(span=20, adjust=False).mean()
     return data
 
+
 # =====================================================================
-# STREAMLIT LAYOUT
+# CALCULATE METRICS (FIXED)
+# =====================================================================
+def calculate_metrics(data):
+    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
+    data['High'] = pd.to_numeric(data['High'], errors='coerce')
+    data['Low'] = pd.to_numeric(data['Low'], errors='coerce')
+    data['Volume'] = pd.to_numeric(data['Volume'], errors='coerce')
+
+    data = data.dropna(subset=['Close'])
+
+    last_close = float(data['Close'].iloc[-1])
+    prev_close = float(data['Close'].iloc[-2])
+    change = last_close - prev_close
+    pct_change = (change / prev_close) * 100
+
+    high = float(data['High'].max())
+    low = float(data['Low'].min())
+    volume = int(data['Volume'].sum())
+
+    return last_close, change, pct_change, high, low, volume
+
+
+# =====================================================================
+# STREAMLIT PAGE
 # =====================================================================
 st.set_page_config(layout="wide")
-st.title('Real Time Stock Dashboard + LSTM BBCA Forecast')
+st.title('📈 Real-Time Stock Dashboard + BBCA LSTM Forecast')
 
-# Sidebar
+
+# =====================================================================
+# SIDEBAR MENU
+# =====================================================================
 st.sidebar.header('Navigasi')
 menu = st.sidebar.radio("Pilih Menu", [
     "Real-Time Stock Chart",
     "Prediksi Harga BBCA (LSTM Model Anda)"
 ])
 
-# Mapping
 interval_mapping = {
     '1d': '1m',
     '1wk': '30m',
@@ -113,9 +139,8 @@ interval_mapping = {
 }
 
 
-
 # =====================================================================
-# MENU 1: REAL-TIME CHART
+# MENU 1 — REAL TIME STOCK CHART
 # =====================================================================
 if menu == "Real-Time Stock Chart":
 
@@ -130,36 +155,42 @@ if menu == "Real-Time Stock Chart":
         data = fetch_stock_data(ticker, time_period, interval_mapping[time_period])
         data = process_data(data)
         data = add_technical_indicators(data)
-        
+        data = data.dropna(subset=['Close'])
+
         last_close, change, pct_change, high, low, volume = calculate_metrics(data)
 
-        st.metric(f"{ticker} Last Price", f"{last_close:.2f}", f"{change:.2f} ({pct_change:.2f}%)")
+        st.metric(f"{ticker} Last Price",
+                  f"{last_close:.2f}",
+                  f"{change:.2f} ({pct_change:.2f}%)")
 
-        # Plot
         fig = go.Figure()
+
         if chart_type == 'Candlestick':
-            fig.add_trace(go.Candlestick(x=data['Datetime'], open=data['Open'],
-                                         high=data['High'], low=data['Low'], close=data['Close']))
+            fig.add_trace(go.Candlestick(
+                x=data['Datetime'],
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close']
+            ))
         else:
             fig = px.line(data, x='Datetime', y='Close')
 
-        for indicator in indicators:
-            if indicator == 'SMA 20':
-                fig.add_trace(go.Scatter(x=data['Datetime'], y=data['SMA_20'], name='SMA 20'))
-            elif indicator == 'EMA 20':
-                fig.add_trace(go.Scatter(x=data['Datetime'], y=data['EMA_20'], name='EMA 20'))
+        if 'SMA 20' in indicators:
+            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['SMA_20'], name='SMA 20'))
+        if 'EMA 20' in indicators:
+            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['EMA_20'], name='EMA 20'))
 
         fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True)
 
 
-
 # =====================================================================
-# MENU 2: PREDIKSI BBCA DENGAN MODEL LSTM KAMU
+# MENU 2 — PREDIKSI BBCA LSTM
 # =====================================================================
 if menu == "Prediksi Harga BBCA (LSTM Model Anda)":
 
-    st.header("Prediksi Harga Saham BBCA Menggunakan Model LSTM Anda")
+    st.header("📌 Prediksi Harga Saham BBCA Menggunakan Model LSTM Anda")
 
     n_days = st.slider("Prediksi berapa hari ke depan?", 1, 30, 7)
 
@@ -171,8 +202,7 @@ if menu == "Prediksi Harga BBCA (LSTM Model Anda)":
         for i, p in enumerate(pred_list, start=1):
             st.write(f"Hari ke-{i}: **Rp {p:,.2f}**")
 
-        # Plot dengan Plotly
-        future_idx = list(range(len(df), len(df)+n_days))
+        future_idx = list(range(len(df), len(df) + n_days))
 
         fig_pred = go.Figure()
         fig_pred.add_trace(go.Scatter(
