@@ -86,10 +86,9 @@ def calculate_metrics(data):
     return last_close, change, pct_change, high, low, volume
 
 def add_technical_indicators(data):
-    data['SMA_20'] = ta.trend.sma_indicator(data['Close'], window=20)
-    data['EMA_20'] = ta.trend.ema_indicator(data['Close'], window=20)
+    data['SMA_20'] = data['Close'].rolling(window=20).mean()
+    data['EMA_20'] = data['Close'].ewm(span=20, adjust=False).mean()
     return data
-
 
 # =====================================================================
 # STREAMLIT LAYOUT
@@ -100,8 +99,8 @@ st.title('Real Time Stock Dashboard + LSTM BBCA Forecast')
 # Sidebar
 st.sidebar.header('Navigasi')
 menu = st.sidebar.radio("Pilih Menu", [
-    "📊 Real-Time Stock Chart",
-    "🔮 Prediksi Harga BBCA (LSTM Model Anda)"
+    "Real-Time Stock Chart",
+    "Prediksi Harga BBCA (LSTM Model Anda)"
 ])
 
 # Mapping
@@ -118,7 +117,7 @@ interval_mapping = {
 # =====================================================================
 # MENU 1: REAL-TIME CHART
 # =====================================================================
-if menu == "📊 Real-Time Stock Chart":
+if menu == "Real-Time Stock Chart":
 
     st.sidebar.header("Chart Parameters")
     ticker = st.sidebar.text_input('Ticker', 'ADBE')
@@ -158,7 +157,7 @@ if menu == "📊 Real-Time Stock Chart":
 # =====================================================================
 # MENU 2: PREDIKSI BBCA DENGAN MODEL LSTM KAMU
 # =====================================================================
-if menu == "🔮 Prediksi Harga BBCA (LSTM Model Anda)":
+if menu == "Prediksi Harga BBCA (LSTM Model Anda)":
 
     st.header("Prediksi Harga Saham BBCA Menggunakan Model LSTM Anda")
 
