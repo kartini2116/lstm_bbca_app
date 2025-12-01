@@ -11,7 +11,6 @@ from sklearn.preprocessing import MinMaxScaler
 # ===========================================================
 MODEL_PATH = "model_bbca.keras"
 SCALER_PATH = "scaler_bbca.pkl"
-DATA_PATH   = "bbca.csv"   # digunakan jika user tidak upload CSV
 
 model = load_model(MODEL_PATH)
 
