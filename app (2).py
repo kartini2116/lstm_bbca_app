@@ -11,7 +11,7 @@ st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
 # ===============================
 # 1. Load Model + Scaler + Data
 # ===============================
-model = load_model("model_bbca.h5", compile=False)
+model = load_model("model_bbca.keras, compile=False)
 model.compile(optimizer="adam", loss=MeanSquaredError())
 
 scaler = joblib.load("scaler_bbca.pkl")
