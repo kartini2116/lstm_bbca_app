@@ -61,7 +61,7 @@ def predict_lstm(dataframe, n_future):
 # ===========================================================
 # STREAMLIT UI
 # ===========================================================
-st.title("📈 Prediksi Harga Saham BBCA Menggunakan LSTM")
+st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
 st.write("Aplikasi ini memprediksi harga saham BBCA untuk beberapa hari ke depan.")
 
 st.sidebar.header("⚙ Pengaturan Prediksi")
@@ -82,21 +82,21 @@ if "Close" not in df.columns:
     st.error("CSV harus memiliki kolom 'Close'.")
     st.stop()
 
-st.subheader("📊 Data Harga BBCA (5 Baris Terakhir)")
+st.subheader("Data Harga BBCA (5 Baris Terakhir)")
 st.dataframe(df.tail())
 
 # Tombol prediksi
-if st.button("🔮 Jalankan Prediksi"):
+if st.button("Jalankan Prediksi"):
     preds = predict_lstm(df, n_days)
 
-    st.subheader("📌 Hasil Prediksi LSTM")
+    st.subheader("Hasil Prediksi LSTM")
     for i, p in enumerate(preds, start=1):
         st.write(f"Hari ke-{i}: **Rp {p:,.2f}**")
 
     # ======================================
     # GRAFIK MATPLOTLIB
     # ======================================
-    st.subheader("📈 Grafik Aktual vs Prediksi")
+    st.subheader("Grafik Aktual vs Prediksi")
 
     fig, ax = plt.subplots(figsize=(10,5))
 
@@ -120,5 +120,5 @@ if st.button("🔮 Jalankan Prediksi"):
         "Prediksi Harga (IDR)": preds
     })
 
-    st.subheader("📄 Tabel Hasil Prediksi")
+    st.subheader("Tabel Hasil Prediksi")
     st.dataframe(pred_df)
