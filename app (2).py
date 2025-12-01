@@ -11,6 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 # ===========================================================
 MODEL_PATH = "model_bbca.keras"
 SCALER_PATH = "scaler_bbca.pkl"
+DATA_PATH   = "bbca.csv"   # digunakan jika user tidak upload CSV
 
 model = load_model(MODEL_PATH)
 
@@ -60,7 +61,7 @@ def predict_lstm(dataframe, n_future):
 # ===========================================================
 # STREAMLIT UI
 # ===========================================================
-st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
+st.title("📈 Prediksi Harga Saham BBCA Menggunakan LSTM")
 st.write("Aplikasi ini memprediksi harga saham BBCA untuk beberapa hari ke depan.")
 
 st.sidebar.header("⚙ Pengaturan Prediksi")
@@ -72,28 +73,30 @@ uploaded_file = st.file_uploader("Upload file CSV harga saham (opsional)", type=
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     st.success("File berhasil diupload!")
-
+else:
+    df = pd.read_csv(DATA_PATH)
+    st.info("Menggunakan data default: bbca.csv")
 
 # Validasi kolom Close
 if "Close" not in df.columns:
     st.error("CSV harus memiliki kolom 'Close'.")
     st.stop()
-else:
-    df = pd.read_csv(DATA_PATH)
-    st.info("Menggunakan data default: bbca.csv")
+
+st.subheader("📊 Data Harga BBCA (5 Baris Terakhir)")
+st.dataframe(df.tail())
 
 # Tombol prediksi
-if st.button("Prediksi"):
+if st.button("🔮 Jalankan Prediksi"):
     preds = predict_lstm(df, n_days)
 
-    st.subheader("Hasil Prediksi LSTM")
+    st.subheader("📌 Hasil Prediksi LSTM")
     for i, p in enumerate(preds, start=1):
         st.write(f"Hari ke-{i}: **Rp {p:,.2f}**")
 
     # ======================================
     # GRAFIK MATPLOTLIB
     # ======================================
-    st.subheader("Grafik Aktual vs Prediksi")
+    st.subheader("📈 Grafik Aktual vs Prediksi")
 
     fig, ax = plt.subplots(figsize=(10,5))
 
@@ -117,5 +120,5 @@ if st.button("Prediksi"):
         "Prediksi Harga (IDR)": preds
     })
 
-    st.subheader("Tabel Hasil Prediksi")
+    st.subheader("📄 Tabel Hasil Prediksi")
     st.dataframe(pred_df)
