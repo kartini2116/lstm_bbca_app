@@ -72,17 +72,12 @@ uploaded_file = st.file_uploader("Upload file CSV harga saham (opsional)", type=
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     st.success("File berhasil diupload!")
-else:
-    df = pd.read_csv(DATA_PATH)
-    st.info("Menggunakan data default: bbca.csv")
+
 
 # Validasi kolom Close
 if "Close" not in df.columns:
     st.error("CSV harus memiliki kolom 'Close'.")
     st.stop()
-
-st.subheader("Data Harga BBCA (5 Baris Terakhir)")
-st.dataframe(df.tail())
 
 # Tombol prediksi
 if st.button("Prediksi"):
