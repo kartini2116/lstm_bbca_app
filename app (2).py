@@ -120,5 +120,5 @@ if st.button("Prediksi"):
         "Prediksi Harga (IDR)": preds
     })
 
-    st.subheader("📄 Tabel Hasil Prediksi")
+    st.subheader("Tabel Hasil Prediksi")
     st.dataframe(pred_df)
