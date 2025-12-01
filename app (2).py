@@ -69,7 +69,7 @@ n_days = st.sidebar.slider("Prediksi berapa hari ke depan?", 1, 30, 7)
 uploaded_file = st.file_uploader("Upload file CSV harga saham (opsional)", type=["csv"])
 
 # Jika user upload dataset
-if uploaded_file is not None:
+uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     st.success("File berhasil diupload!")
 
