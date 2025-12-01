@@ -1,74 +1,107 @@
-import numpy as np
-import pandas as pd
-import joblib
 import streamlit as st
-import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import requests
+from io import StringIO
 from tensorflow.keras.models import load_model
-from tensorflow.keras.losses import MeanSquaredError
+from sklearn.preprocessing import MinMaxScaler
+import pickle
+import plotly.graph_objects as go
 
-st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
+# =========================================================
+# 1. LOAD MODEL DAN SCALER
+# =========================================================
+MODEL_PATH = "model_bbca.keras"
+SCALER_PATH = "scaler_bbca.pkl"
 
-# ===============================
-# 1. Load Model + Scaler + Data
-# ===============================
-model = load_model("model_bbca.keras, compile=False)
-model.compile(optimizer="adam", loss=MeanSquaredError())
+model = load_model(MODEL_PATH)
 
-scaler = joblib.load("scaler_bbca.pkl")
-df = pd.read_csv("bbca.csv")
+with open(SCALER_PATH, "rb") as f:
+    scaler = pickle.load(f)
 
-# Ambil Close price saja
-close_prices = df[['Close']].astype(float)
-scaled_close = scaler.transform(close_prices)
 
-# ===============================
-# 2. Fungsi Prediksi Future
-# ===============================
-def predict_future(model, scaler, data, days=23, timestep=60):
-    results_scaled = []
-    window = data[-timestep:].reshape(1, timestep, 1)
+# =========================================================
+# 2. FUNGSI AMBIL DATASET DARI GITHUB
+# =========================================================
+RAW_URL = "https://raw.githubusercontent.com/USERNAME/REPO/BRANCH/bbca.csv"
 
-    for _ in range(days):
-        pred = model.predict(window, verbose=0)
+def load_data_from_github():
+    content = requests.get(RAW_URL).text
+    df = pd.read_csv(StringIO(content))
+    df["Close"] = df["Close"].astype(float)
+    return df
+
+
+# =========================================================
+# 3. PREDIKSI MULTI-STEP TANPA DATA LAIN
+# =========================================================
+TIMESTEP = model.input_shape[1]   # otomatis baca timesteps model
+
+
+def predict_future(df, n_days):
+    close = df["Close"].values.reshape(-1, 1)
+    
+    scaled = scaler.transform(close)
+
+    seq = scaled[-TIMESTEP:].reshape(1, TIMESTEP, 1)
+
+    predictions = []
+
+    for _ in range(n_days):
+        next_scaled = model.predict(seq, verbose=0)[0][0]
+        next_real = scaler.inverse_transform([[next_scaled]])[0][0]
+        predictions.append(next_real)
+
+        seq = np.append(seq.flatten()[1:], next_scaled).reshape(1, TIMESTEP, 1)
+
+    return predictions
+
+
+# =========================================================
+# 4. STREAMLIT UI
+# =========================================================
+st.title("Prediksi Harga BBCA Menggunakan LSTM")
+
+if st.button("Muat Data dari GitHub"):
+    df = load_data_from_github()
+    st.success("Data berhasil dimuat dari GitHub!")
+    st.dataframe(df.tail())
+
+    n_days = st.slider("Prediksi berapa hari ke depan?", 1, 30, 7)
+
+    if st.button("Prediksi"):
+        pred = predict_future(df, n_days)
+
+        st.subheader("Hasil Prediksi Harga")
+
+        for i, p in enumerate(pred, start=1):
+            st.write(f"Hari ke-{i}: **Rp {p:,.2f}**")
+
+        future_idx = list(range(len(df), len(df) + n_days))
+
+        fig = go.Figure()
         
-        # reshape pred menjadi (1,1,1) agar match window
-        pred_reshaped = pred.reshape(1, 1, 1)
-        
-        # update window dengan prediksi baru
-        window = np.concatenate([window[:, 1:, :], pred_reshaped], axis=1)
-        
-        results_scaled.append(pred[0][0])
+        # Harga aktual
+        fig.add_trace(go.Scatter(
+            x=list(range(len(df))),
+            y=df["Close"],
+            mode="lines",
+            name="Aktual"
+        ))
 
-    # Kembalikan ke skala normal
-    results = scaler.inverse_transform(np.array(results_scaled).reshape(-1,1))
-    return results
+        # Prediksi
+        fig.add_trace(go.Scatter(
+            x=future_idx,
+            y=pred,
+            mode="lines+markers",
+            name="Prediksi"
+        ))
 
-# ===============================
-# 3. Prediksi 23 Hari
-# ===============================
-future_days = 23
-future_pred = predict_future(model, scaler, scaled_close, days=future_days)
+        fig.update_layout(
+            title="Prediksi Harga Saham BBCA (LSTM)",
+            xaxis_title="Index",
+            yaxis_title="Harga",
+            height=600
+        )
 
-st.subheader("Prediksi Harga 23 Hari Kedepan")
-
-for i, p in enumerate(future_pred, start=1):
-    st.write(f"Hari ke-{i}: Rp {p[0]:,.2f}")
-
-# ===============================
-# 4. Plot Grafik
-# ===============================
-actual_prices = scaler.inverse_transform(scaled_close)
-
-fig, ax = plt.subplots(figsize=(12,5))
-ax.plot(actual_prices, label="Harga Aktual")
-
-start = len(actual_prices)
-end = start + len(future_pred)
-
-ax.plot(range(start, end), future_pred, "o-", label="Prediksi 23 Hari")
-ax.set_title("Prediksi Harga Saham BBCA")
-ax.set_xlabel("Index Waktu")
-ax.set_ylabel("Harga (IDR)")
-ax.legend()
-
-st.pyplot(fig)
+        st.plotly_chart(fig, use_container_width=True)
