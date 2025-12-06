@@ -61,36 +61,29 @@ def predict_future(df, n_future):
 # SIDEBAR NAVIGASI
 # ============================================
 menu = st.sidebar.radio(
-    "📌 Navigasi",
-    ["🏠 Home", "🔮 Prediksi Harga"]
+    "Navigasi",
+    ["Home", "Prediksi Harga"]
 )
 
 # ============================================
 # HALAMAN HOME
 # ============================================
-if menu == "🏠 Home":
-    st.title("📈 Prediksi Harga Saham BBCA Menggunakan LSTM")
+if menu == "Home":
+    st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
     st.write("""
 Selamat datang di aplikasi **Prediksi Harga Saham BBCA** berbasis **Long Short-Term Memory (LSTM)**.
+ 
 
-Aplikasi ini:
-- Menggunakan model LSTM yang dilatih dari data historis BBCA  
-- Membaca **data otomatis** dari repository (bbca.csv)  
-- Menyediakan **prediksi jumlah hari ke depan**  
-- Menampilkan **grafik aktual vs prediksi**  
-- Menyediakan UI profesional dan mudah digunakan  
-
-Klik menu **'🔮 Prediksi Harga'** untuk mulai.
+Klik menu **'Prediksi Harga'** untuk mulai.
     """)
 
-    st.info("Data otomatis di-load dari file `bbca.csv` di repository Anda.")
 
 # ============================================
 # HALAMAN PREDIKSI
 # ============================================
-elif menu == "🔮 Prediksi Harga":
+elif menu == "Prediksi Harga":
 
-    st.title("🔮 Prediksi Harga Saham BBCA")
+    st.title("Prediksi Harga Saham BBCA")
 
     df = pd.read_csv(DATA_PATH)
 
@@ -101,21 +94,21 @@ elif menu == "🔮 Prediksi Harga":
     st.sidebar.header("⚙ Pengaturan Prediksi")
     n_days = st.sidebar.slider("Prediksi berapa hari ke depan?", 1, 60, 7)
 
-    if st.button("🚀 Jalankan Prediksi"):
+    if st.button("Jalankan Prediksi"):
         preds = predict_future(df, n_days)
         st.success("Prediksi berhasil dibuat!")
 
         # =============================
         # Hasil Prediksi
         # =============================
-        st.subheader("📌 Hasil Prediksi Harga BBCA")
+        st.subheader("Hasil Prediksi Harga BBCA")
         for i, p in enumerate(preds, start=1):
             st.write(f"**Hari ke-{i}: Rp {p:,.2f}**")
 
         # =============================
         # Grafik Interaktif
         # =============================
-        st.subheader("📈 Grafik Harga Aktual vs Prediksi")
+        st.subheader("Grafik Harga Aktual vs Prediksi")
 
         actual = df["Close"].values
         future_index = np.arange(len(actual), len(actual) + n_days)
