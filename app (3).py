@@ -71,6 +71,7 @@ if menu == "Home":
     st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
     st.write("""
 Selamat datang di aplikasi **Prediksi Harga Saham BBCA** berbasis **Long Short-Term Memory (LSTM)**.
+
 Klik **'Prediksi Harga'** untuk mulai.
     """)
 
