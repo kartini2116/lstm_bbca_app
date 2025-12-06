@@ -1,190 +1,124 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-import tensorflow as tf
+import pandas as pd
+import pickle
+from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-import plotly.graph_objects as go
-from utils import load_lstm_model, predict_future
 
-def load_lstm_model(path="model_lstm_bbca"):
-    return tf.keras.models.load_model(path)
+# ===========================================================
+# LOAD MODEL DAN SCALER
+# ===========================================================
+MODEL_PATH = "model_bbca.keras"
+SCALER_PATH = "scaler_bbca.pkl"
+DATA_PATH   = "bbca.csv"   # digunakan jika user tidak upload CSV
 
-def predict_future(model, last_sequence, n_future=3):
-    preds = []
-    seq = last_sequence.copy()
+model = load_model(MODEL_PATH)
+
+with open(SCALER_PATH, "rb") as f:
+    scaler: MinMaxScaler = pickle.load(f)
+
+TIMESTEP = 60  # HARUS SAMA DENGAN TRAINING
+
+
+# ===========================================================
+# FUNGSI UNTUK MEMBUAT SEKUENS DATA
+# ===========================================================
+def create_sequences(data, timestep):
+    X, y = [], []
+    for i in range(timestep, len(data)):
+        X.append(data[i - timestep:i, 0])
+        y.append(data[i, 0])
+    return np.array(X), np.array(y)
+
+
+# ===========================================================
+# FUNGSI PREDIKSI LSTM
+# ===========================================================
+def predict_lstm(dataframe, n_future):
+    close_prices = dataframe[['Close']].astype(float).values
+    scaled = scaler.transform(close_prices)
+
+    last_seq = scaled[-TIMESTEP:]
+    seq = last_seq.reshape(1, TIMESTEP, 1)
+
+    preds_scaled = []
+    preds_real = []
 
     for _ in range(n_future):
-        pred = model.predict(seq.reshape(1, seq.shape[0], 1), verbose=0)
-        preds.append(pred[0][0])
-        seq = np.append(seq[1:], pred)
+        next_scaled = model.predict(seq, verbose=0)[0][0]
+        preds_scaled.append(next_scaled)
 
-    return np.array(preds)
+        next_real = scaler.inverse_transform([[next_scaled]])[0][0]
+        preds_real.append(next_real)
 
-# ================================
-#   CONFIGURASI DASHBOARD
-# ================================
-st.set_page_config(
-    page_title="LSTM BBCA Stock Prediction",
-    page_icon="📈",
-    layout="wide"
-)
+        new_seq = np.append(seq.flatten()[1:], next_scaled)
+        seq = new_seq.reshape(1, TIMESTEP, 1)
 
-# CSS styling untuk tampilan profesional
-st.markdown("""
-<style>
-.big-font {
-    font-size:28px !important;
-    font-weight: bold;
-}
-.card {
-    padding: 20px;
-    background-color: #1f2937;
-    border-radius: 12px;
-    color: white;
-    text-align: center;
-    font-size: 20px;
-}
-.metric-title {
-    font-size: 16px;
-    color: #9ca3af;
-}
-.metric-value {
-    font-size: 28px;
-    font-weight: bold;
-    color: white;
-}
-</style>
-""", unsafe_allow_html=True)
+    return preds_real
 
 
-# ===========================================
-#      SIDEBAR
-# ===========================================
-st.sidebar.title("📊 Navigasi")
-menu = st.sidebar.radio(
-    "Pilih Halaman",
-    ["Dashboard", "Prediksi 3 Hari"]
-)
+# ===========================================================
+# STREAMLIT UI
+# ===========================================================
+st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
+st.write("Aplikasi ini memprediksi harga saham BBCA untuk beberapa hari ke depan.")
 
-# Load model
-model = load_lstm_model("model_lstm_bbca")
+st.sidebar.header("⚙ Pengaturan Prediksi")
+n_days = st.sidebar.slider("Prediksi berapa hari ke depan?", 1, 30, 7)
 
+uploaded_file = st.file_uploader("Upload file CSV harga saham (opsional)", type=["csv"])
 
-# ================================================================
-#                      DASHBOARD UTAMA
-# ================================================================
-if menu == "Dashboard":
-    st.title("📈 Dashboard Prediksi Saham BBCA Menggunakan LSTM")
+# Jika user upload dataset
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    st.success("File berhasil diupload!")
+else:
+    df = pd.read_csv(DATA_PATH)
+    st.info("Menggunakan data default: bbca.csv")
 
-    upload = st.file_uploader("Upload file bbca.csv", type=["csv"])
+# Validasi kolom Close
+if "Close" not in df.columns:
+    st.error("CSV harus memiliki kolom 'Close'.")
+    st.stop()
 
-    if upload is not None:
-        df = pd.read_csv(upload)
-        st.dataframe(df.tail())
+st.subheader("Data Harga BBCA (5 Baris Terakhir)")
+st.dataframe(df.tail())
 
-        close_prices = df["Close"].values.reshape(-1, 1)
-        scaler = MinMaxScaler()
-        scaled = scaler.fit_transform(close_prices)
+# Tombol prediksi
+if st.button("Jalankan Prediksi"):
+    preds = predict_lstm(df, n_days)
 
-        # Residual hanya ditampilkan jika model berisi prediksi valid
-        st.subheader("📉 Grafik Harga Saham")
+    st.subheader("Hasil Prediksi LSTM")
+    for i, p in enumerate(preds, start=1):
+        st.write(f"Hari ke-{i}: **Rp {p:,.2f}**")
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            y=df["Close"],
-            mode='lines',
-            name='Harga Close',
-            line=dict(width=2)
-        ))
-        fig.update_layout(
-            template="plotly_dark",
-            height=450,
-            xaxis_title="Index",
-            yaxis_title="Harga"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    # ======================================
+    # GRAFIK MATPLOTLIB
+    # ======================================
+    st.subheader("Grafik Aktual vs Prediksi")
 
-    else:
-        st.info("Silakan upload file **bbca.csv** untuk memulai.")
+    fig, ax = plt.subplots(figsize=(10,5))
 
+    actual = df["Close"].astype(float).values
+    future_index = np.arange(len(actual), len(actual) + n_days)
 
-# ================================================================
-#               PREDIKSI 3 HARI KE DEPAN
-# ================================================================
-if menu == "Prediksi 3 Hari":
+    ax.plot(actual, label="Harga Aktual", linewidth=2)
+    ax.plot(future_index, preds, label="Prediksi", linestyle="--", marker="o")
 
-    st.title("🔮 Prediksi Harga BBCA 3 Hari Kedepan")
+    ax.set_title("Prediksi Harga Saham BBCA (LSTM)")
+    ax.set_xlabel("Index Waktu")
+    ax.set_ylabel("Harga (IDR)")
+    ax.legend()
+    ax.grid(True)
 
-    upload = st.file_uploader("Upload file bbca.csv", type=["csv"])
+    st.pyplot(fig)
 
-    if upload is not None:
+    # Tabel prediksi
+    pred_df = pd.DataFrame({
+        "Hari Ke": np.arange(1, n_days+1),
+        "Prediksi Harga (IDR)": preds
+    })
 
-        df = pd.read_csv(upload)
-
-        close_price = df["Close"].values.reshape(-1,1)
-        scaler = MinMaxScaler()
-        scaled = scaler.fit_transform(close_price)
-
-        window = 60
-        last_sequence = scaled[-window:]
-
-        with st.spinner("Model sedang memprediksi..."):
-            pred_scaled = predict_future(model, last_sequence, n_future=3)
-            pred = scaler.inverse_transform(pred_scaled.reshape(-1,1))
-
-        # ===========================
-        #   Tampilan Prediksi
-        # ===========================
-        st.header("📌 Hasil Prediksi 3 Hari Kedepan")
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"""
-            <div class="card">
-                <div class="metric-title">Prediksi Hari 1</div>
-                <div class="metric-value">{pred[0][0]:,.2f}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-            <div class="card">
-                <div class="metric-title">Prediksi Hari 2</div>
-                <div class="metric-value">{pred[1][0]:,.2f}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-            <div class="card">
-                <div class="metric-title">Prediksi Hari 3</div>
-                <div class="metric-value">{pred[2][0]:,.2f}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.subheader("📉 Grafik Prediksi vs Aktual")
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            y=df["Close"],
-            mode='lines',
-            name='Aktual',
-            line=dict(width=2)
-        ))
-        fig.add_trace(go.Scatter(
-            x=[len(df), len(df)+1, len(df)+2],
-            y=[pred[0][0], pred[1][0], pred[2][0]],
-            mode='lines+markers',
-            name='Prediksi',
-            line=dict(width=3, dash='dot')
-        ))
-
-        fig.update_layout(
-            template="plotly_dark",
-            height=450,
-            xaxis_title="Index",
-            yaxis_title="Harga"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    else:
-        st.info("Silakan upload file **bbca.csv** untuk memulai prediksi.")
+    st.subheader("Tabel Hasil Prediksi")
+    st.dataframe(pred_df)
