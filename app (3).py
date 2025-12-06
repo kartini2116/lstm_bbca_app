@@ -74,7 +74,7 @@ if menu == "Home":
 Selamat datang di aplikasi **Prediksi Harga Saham BBCA** berbasis **Long Short-Term Memory (LSTM)**.
  
 
-Klik menu **'Prediksi Harga'** untuk mulai.
+Klik **'Prediksi Harga'** untuk mulai.
     """)
 
 
