@@ -91,19 +91,12 @@ elif menu == "Prediksi Harga":
         st.error("File `bbca.csv` harus memiliki kolom 'Close'.")
         st.stop()
 
-    st.sidebar.header("⚙ Pengaturan Prediksi")
+    st.sidebar.header("Pengaturan Prediksi")
     n_days = st.sidebar.slider("Prediksi berapa hari ke depan?", 1, 60, 7)
 
     if st.button("Jalankan Prediksi"):
         preds = predict_future(df, n_days)
         st.success("Prediksi berhasil dibuat!")
-
-        # =============================
-        # Hasil Prediksi
-        # =============================
-        st.subheader("Hasil Prediksi Harga BBCA")
-        for i, p in enumerate(preds, start=1):
-            st.write(f"**Hari ke-{i}: Rp {p:,.2f}**")
 
         # =============================
         # Grafik Interaktif
