@@ -6,6 +6,20 @@ from sklearn.preprocessing import MinMaxScaler
 import plotly.graph_objects as go
 from utils import load_lstm_model, predict_future
 
+def load_lstm_model(path="model_lstm_bbca"):
+    return tf.keras.models.load_model(path)
+
+def predict_future(model, last_sequence, n_future=3):
+    preds = []
+    seq = last_sequence.copy()
+
+    for _ in range(n_future):
+        pred = model.predict(seq.reshape(1, seq.shape[0], 1), verbose=0)
+        preds.append(pred[0][0])
+        seq = np.append(seq[1:], pred)
+
+    return np.array(preds)
+
 # ================================
 #   CONFIGURASI DASHBOARD
 # ================================
