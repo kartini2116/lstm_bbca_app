@@ -36,26 +36,32 @@ model = load_lstm_model()
 scaler: MinMaxScaler = load_scaler()
 
 # ============================================
-# FUNGSI PREDIKSI
+# FUNGSI PREDIKSI (VERSI SESUAI PERMINTAAN)
 # ============================================
 def predict_future(df, n_future):
     close_prices = df[['Close']].astype(float).values
-    scaled = scaler.transform(close_prices)
 
-    last_seq = scaled[-TIMESTEP:]
-    seq = last_seq.reshape(1, TIMESTEP, 1)
+    # scaled close price
+    scaled_close = scaler.transform(close_prices)
 
-    preds_real = []
+    # ambil 60 hari terakhir sebagai input
+    last_sequence = scaled_close[-60:]
+    temp_seq = last_sequence.copy()
+
+    future_predictions = []
 
     for _ in range(n_future):
-        pred_scaled = model.predict(seq, verbose=0)[0][0]
-        pred_real = scaler.inverse_transform([[pred_scaled]])[0][0]
-        preds_real.append(pred_real)
+        input_seq = temp_seq.reshape(1, 60, 1)
+        pred_scaled = model.predict(input_seq, verbose=0)
 
-        new_seq = np.append(seq.flatten()[1:], pred_scaled)
-        seq = new_seq.reshape(1, TIMESTEP, 1)
+        # inverse transform ke harga asli
+        pred_original = scaler.inverse_transform(pred_scaled)[0][0]
+        future_predictions.append(pred_original)
 
-    return preds_real
+        # update sequence
+        temp_seq = np.append(temp_seq[1:], pred_scaled, axis=0)
+
+    return future_predictions
 
 # ============================================
 # SIDEBAR NAVIGASI
@@ -72,11 +78,8 @@ if menu == "Home":
     st.title("Prediksi Harga Saham BBCA Menggunakan LSTM")
     st.write("""
 Selamat datang di aplikasi **Prediksi Harga Saham BBCA** berbasis **Long Short-Term Memory (LSTM)**.
- 
-
 Klik **'Prediksi Harga'** untuk mulai.
     """)
-
 
 # ============================================
 # HALAMAN PREDIKSI
@@ -133,5 +136,5 @@ elif menu == "Prediksi Harga":
             "Prediksi Harga": preds
         })
 
-        st.subheader("📄 Tabel Prediksi")
+        st.subheader("Tabel Prediksi")
         st.dataframe(pred_df, use_container_width=True)
