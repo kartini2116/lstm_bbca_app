@@ -40,25 +40,18 @@ scaler: MinMaxScaler = load_scaler()
 # ============================================
 def predict_future(df, n_future):
     close_prices = df[['Close']].astype(float).values
-
-    # scaled close price
     scaled_close = scaler.transform(close_prices)
 
-    # ambil 60 hari terakhir sebagai input
-    last_sequence = scaled_close[-60:]
-    temp_seq = last_sequence.copy()
-
+    temp_seq = scaled_close[-60:].copy()
     future_predictions = []
 
     for _ in range(n_future):
         input_seq = temp_seq.reshape(1, 60, 1)
-        pred_scaled = model.predict(input_seq, verbose=0)
+        pred_scaled = model.predict(input_seq)
 
-        # inverse transform ke harga asli
         pred_original = scaler.inverse_transform(pred_scaled)[0][0]
         future_predictions.append(pred_original)
 
-        # update sequence
         temp_seq = np.append(temp_seq[1:], pred_scaled, axis=0)
 
     return future_predictions
