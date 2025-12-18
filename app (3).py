@@ -15,7 +15,7 @@ st.set_page_config(
     page_icon="📈"
 )
 
-MODEL_PATH = "model_bbca.keras"
+MODEL_PATH = "model_lstm_bbca.keras"
 SCALER_PATH = "scaler_bbca.pkl"
 DATA_PATH = "bbca.csv"
 TIMESTEP = 60
